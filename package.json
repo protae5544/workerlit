@@ -1,0 +1,12 @@
+{
+  "name": "receipt-generator",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node src/app.js",
+    "build": "echo 'Build complete'"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "html-pdf": "^3.0.1"
+  }
+}
