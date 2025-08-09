@@ -1,0 +1,65 @@
+fo
+Sent from
+
+
+Robert13 Prosinéckí (you)
+@robert13prosinc
+
+Time:
+August 10, 2025 at 1:53 AM
+
+Cost:
+816 points
+
+
+GPT-5
+
+Type	Cost
+Your message	575 points
+Bot message	241 points
+Total	816 points
+ปรับให้ไฟล์นี้เซิฟpdfจากฝั่งเซิฟเวอร์ใช้เฟรมเวิร์คหรือวิธีไหนก็ได้ที่ง่ายๆ
+
+pdf.html
+TEXT · 62 KB
+1:53 AM
+
+GPT-5
+
+ต่อไปนี้เป็นวิธีที่ง่ายและตรงไปตรงมาในการย้ายการสร้าง PDF ไปฝั่งเซิร์ฟเวอร์ โดยใช้ Node.js + Express + Puppeteer (Headless Chrome) และสร้าง QR บนฝั่งเซิร์ฟเวอร์ด้วยไลบรารี qrcode
+
+สิ่งที่จะได้
+- เรียก URL แบบ /pdf?id=<เลขคำขอ> แล้วเซิร์ฟเวอร์จะตอบเป็นไฟล์ PDF ทันที (Content-Type: application/pdf)
+- QR Code ในใบเสร็จจะลิงก์กลับมาที่ URL เดิม (/pdf?id=...) เพื่อให้สแกนแล้วดาวน์โหลดไฟล์ได้
+- ใช้ไฟล์ combined-data.json เดิม และรูปพื้นหลัง bg2.svg เดิม (เสิร์ฟจากโฟลเดอร์ public)
+
+ขั้นตอนติดตั้ง
+1) เตรียมโครงสร้างโฟลเดอร์
+- โฟลเดอร์โปรเจกต์
+- server.js (โค้ดเซิร์ฟเวอร์)
+- combined-data.json (ไฟล์ข้อมูล)
+- public/
+- bg2.svg (รูปพื้นหลังใบเสร็จ)
+
+2) ติดตั้งแพ็กเกจ
+- Node.js 18+ แนะนำ
+- รันคำสั่ง:
+- npm init -y
+- npm install express puppeteer qrcode
+
+3) วางโค้ด server.js ด้านล่าง แล้วรัน:
+- node server.js
+- เปิด http://localhost:3000/pdf?id=เลขคำขอ เช่น http://localhost:3000/pdf?id=WP-68-1011897
+
+โค้ดเซิร์ฟเวอร์ (server.js)
+```js
+const express = require('express');
+const path = require('path');
+const fs = require('fs/promises');
+const QRCode = require('qrcode');
+const puppeteer = require('puppeteer');
+
+const app = express();
+
+// เสิร์ฟไฟล์สาธารณะ เช่น bg2.svg
+app.use('/static', express.static(path.join(__dirname, 'public')));
