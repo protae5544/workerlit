@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="th" xml:lang="th">
+<head>
+  <title>PDF Download - ใบเสร็จรับเงิน</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <style type="text/css">
+@font-face {
+    font-family: 'THSarabunPsk';
+    src: url('https://oldqifkvaagtseibueaf.supabase.co/storage/v1/object/public/zzoo/ozz/ss-thsbn.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    unicode-range: U+0E00-0E7F, U+0020-007F, U+00A0-00FF;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'THSarabunPsk';
+    src: url('https://oldqifkvaagtseibueaf.supabase.co/storage/v1/object/public/zzoo/ozz/ss-thsbn-bold.woff2') format('woff2');
+    font-weight: bold;
+    font-style: normal;
+    unicode-range: U+0E00-0E7F, U+0020-007F, U+00A0-00FF;
+    font-display: swap;
+}
+* {
+    text-shadow: 0 1px 0 rgba(0,0,0,0.15), 0 2px 1px rgba(0,0,0,0.08) !important;
+    -webkit-text-stroke: 0.05px currentColor !important;
+}
+.ft00{font-size:20px;font-family:'THSarabunPsk';color:#000000;}
+.ft01{font-size:25px;font-family:'THSarabunPsk';color:#000000;}
+.ft02{font-size:22px;font-family:'THSarabunPsk';color:#000000;}
+.ft03{font-size:22px;font-family:'THSarabunPsk';color:#000000;}
+.ft04{font-size:15px;font-family:'THSarabunPsk';color:#000000;}
+.ft06{font-size:15px;line-height:17px;font-family:'THSarabunPsk';color:#000000;}
+.loading-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.8); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; z-index: 9999;
+  color: white; font-family: 'THSarabunPsk', sans-serif;
+}
+.spinner {
+  border: 4px solid #f3f3f3; border-top: 4px solid #3498db;
+  border-radius: 50%; width: 50px; height: 50px;
+  animation: spin 1s linear infinite; margin-bottom: 20px;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+  <script>
+    let allWorkerData = [];
+    
+    function setImageSrc(imgElementId, src, defaultSrc, workerName, type) {
+      const imgElement = document.getElementById(imgElementId);
+      if (!imgElement) return;
+      if (src && src.trim() !== '') {
+        imgElement.crossOrigin = "anonymous";
+        const testImage = new Image();
+        testImage.crossOrigin = "anonymous";
+        testImage.onload = () => imgElement.src = src;
+        testImage.onerror = () => imgElement.src = defaultSrc;
+        testImage.src = src;
+      } else {
+        imgElement.src = defaultSrc;
+      }
+    }
+
+    function getCurrentTimestamp() {
+      const now = new Date();
+      return now.toLocaleString('th-TH', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', hour12: false
+      }).replace(',', ' น.');
+    }
+
+    function displayWorkerData(worker) {
+      // Receipt Data
+      document.getElementById('requestNumberReceipt').innerHTML = worker.requestNumber || 'N/A';
+      document.getElementById('receiptNumberReceipt').innerHTML = worker.receiptNumber || 'N/A';
+      document.getElementById('paymentNumberReceipt').innerHTML = worker.paymentNumber || 'N/A';
+      document.getElementById('payerNameReceipt').innerHTML = worker.englishName || worker.thaiName || 'N/A';
+      document.getElementById('nationalityReceipt').innerHTML = worker.nationality || 'N/A';
+      document.getElementById('alienReferenceReceipt').innerHTML = worker.alienReferenceNumber || 'N/A';
+      document.getElementById('personalIDReceipt').innerHTML = worker.personalID || 'N/A';
+
+      // QR Code for receipt
+      const currentUrl = window.location.href;
+      const baseUrl = currentUrl.substring(0, currentUrl.lastIndexOf('/') + 1);
+      const currentDomain = window.location.origin;
+      const receiptUrl = `${currentDomain}/pdf.html?id=${encodeURIComponent(worker.requestNumber || '')}`;
+      const receiptQrCodeApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&ecc=H&data=${encodeURIComponent(receiptUrl)}`;
+      const defaultQrCodeSrc = 'https://via.placeholder.com/90?text=No+QR';
+      setImageSrc('receiptQrCode', receiptQrCodeApiUrl, defaultQrCodeSrc, worker.englishName, 'receipt QR code');
+
+      // Timestamp
+      const timestamp = getCurrentTimestamp();
+      const receiptTimestamp = `เอกสารอิเล็กทรอนิกส์ฉบับนี้ถูกสร้างจากระบบอนุญาตทำงานคนต่างด้าวที่มีสถานะการทำงานไม่ถูกต้องตามกฎหมาย ตามมติคณะรัฐมนตรีเมื่อวันที่ 24 กันยายน 2567<br/>โดยกรมการจัดหางาน กระทรวงแรงงาน<br/>พิมพ์เอกสาร วันที่ ${timestamp}`;
+      document.getElementById('receiptTimestamp').innerHTML = receiptTimestamp;
+    }
+
+    async function downloadPage2AsPDF(worker) {
+      try {
+        const page2Element = document.getElementById('page2-div');
+        
+        // Wait for images to load
+        const images = document.querySelectorAll('img');
+        await Promise.all(Array.from(images).map(img => {
+          return new Promise(resolve => {
+            if (img.complete) resolve();
+            else {
+              img.onload = resolve;
+              img.onerror = resolve;
+              setTimeout(resolve, 2000);
+            }
+          });
+        }));
+
+        const opt = {
+          margin: [0, 0, 0, 0],
+          filename: 'mpdf.pdf', // Fixed filename for QR code access
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 3, useCORS: true, width: 892, height: 1261, scrollX: 0, scrollY: 0 },
+          jsPDF: { unit: 'px', format: [892, 1261], orientation: 'portrait', compress: true }
+        };
+
+        // Clone page 2 only
+        const page2Clone = page2Element.cloneNode(true);
+        const container = document.createElement('div');
+        container.style.width = '892px';
+        container.style.height = '1261px';
+        container.appendChild(page2Clone);
+        document.body.appendChild(container);
+
+        await html2pdf().set(opt).from(container).save();
+        document.body.removeChild(container);
+        
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (loadingOverlay) loadingOverlay.style.display = 'none';
+
+      } catch (error) {
+        console.error('Error generating PDF:', error);
+        showError('เกิดข้อผิดพลาดในการสร้าง PDF กรุณาลองใหม่อีกครั้ง');
+      }
+    }
+
+    function showError(message) {
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      if (loadingOverlay) {
+        loadingOverlay.innerHTML = `
+          <div style="text-align: center;">
+            <h2 style="color: #ff6b6b; font-size: 24px; margin-bottom: 20px;">เกิดข้อผิดพลาด</h2>
+            <p style="font-size: 18px; margin-bottom: 20px;">${message}</p>
+            <button onclick="window.close()" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">ปิดหน้าต่าง</button>
+          </div>
+        `;
+      }
+    }
+
+    function loadWorkerData() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const requestNumberFromUrl = urlParams.get('id');
+      
+      fetch('combined-data.json')
+        .then(response => {
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+          return response.json();
+        })
+        .then(data => {
+          allWorkerData = data;
+          
+          if (requestNumberFromUrl) {
+            const worker = allWorkerData.find(w => w.requestNumber === requestNumberFromUrl);
+            
+            if (worker) {
+              displayWorkerData(worker);
+              setTimeout(() => { downloadPage2AsPDF(worker); }, 2000);
+            } else {
+              showError(`ไม่พบข้อมูลสำหรับเลขที่คำขอ: ${requestNumberFromUrl}`);
+            }
+          } else {
+            showError('ไม่พบเลขที่คำขอในลิงก์');
+          }
+        })
+        .catch(error => {
+          console.error('Error loading worker data:', error);
+          showError(`เกิดข้อผิดพลาดในการโหลดข้อมูล: ${error.message}`);
+        });
+    }
+
+    window.onload = function() { loadWorkerData(); };
+  </script>
+</head>
+<body class="bg-gray-500">
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="spinner"></div>
+    <h2 style="font-size: 24px; margin-bottom: 10px;">กำลังเตรียม PDF...</h2>
+    <p style="font-size: 18px;">กรุณารอสักครู่ ระบบกำลังสร้างเอกสารให้คุณ</p>
+  </div>
+
+  <!-- Page 2: Receipt (เหมือนต้นฉบับ 100%) -->
+  <div id="page2-div" class="page-div relative w-[892px] h-[1261px] font-['THSarabunPSK'] text-black mx-auto bg-white">
+    <img width="892" height="1261" src="bg2.svg" alt="receipt background image"/>
+    <!-- Receipt QR Code -->
+    <img class="absolute top-[925px] left-[120px] w-[90px] h-[90px] object-cover" id="receiptQrCode" src="https://via.placeholder.com/90?text=Loading" alt="Receipt QR Code"/>
+    <!-- Department Info -->
+    <p style="position:absolute;top:147px;left:86px;white-space:nowrap" class="ft00">กรมการจัดหางาน</p>
+    <p style="position:absolute;top:170px;left:88px;white-space:nowrap" class="ft00">กระทรวงแรงงาน</p>
+    <!-- Receipt Header -->
+    <p style="position:absolute;top:90px;left:397px;white-space:nowrap" class="ft01"><b>ใบเสร็จรับเงิน</b></p>
+    <p style="position:absolute;top:120px;left:418px;white-space:nowrap" class="ft01"><b>ต้นฉบับ</b></p>
+    <!-- Receipt Number -->
+    <p style="position:absolute;top:60px;left:598px;white-space:nowrap" class="ft00">เลขที่</p>
+    <p style="position:absolute;top:60px;left:640px;white-space:nowrap" class="ft00" id="receiptNumberReceipt">xxxxxxx</p>
+    <!-- Office and Date -->
+    <p style="position:absolute;top:149px;left:582px;white-space:nowrap" class="ft00">ที่ทำการ&#160;&#160; สำนักบริหารแรงงานต่างด้าว</p>
+    <p style="position:absolute;top:188px;left:602px;white-space:nowrap" class="ft00">วันที่&#160;&#160; 19 มีนาคม 2568</p>
+    <!-- Payment Number -->
+    <p style="position:absolute;top:227px;left:540px;white-space:nowrap" class="ft00">เลขที่ใบชำระเงิน&#160;&#160;</p>
+    <p style="position:absolute;top:227px;left:640px;white-space:nowrap" class="ft00" id="paymentNumberReceipt">IV680329/002308</p>
+    <!-- Payer Information -->
+    <p style="position:absolute;top:271px;left:60px;white-space:nowrap" class="ft00">เลขรับคำขอที่</p>
+    <p style="position:absolute;top:271px;left:180px;white-space:nowrap" class="ft00" id="requestNumberReceipt">xxxxxxx</p>
+    <p style="position:absolute;top:310px;left:60px;white-space:nowrap" class="ft00">ชื่อผู้ชำระเงิน</p>
+    <p style="position:absolute;top:310px;left:180px;white-space:nowrap" class="ft00" id="payerNameReceipt">xxxxxxxxxxxxx</p>
+    <p style="position:absolute;top:310px;left:471px;white-space:nowrap" class="ft00">สัญชาติ</p>
+    <p style="position:absolute;top:310px;left:520px;white-space:nowrap" class="ft00" id="nationalityReceipt">เมียนมา</p>
+    <p style="position:absolute;top:354px;left:60px;white-space:nowrap" class="ft00">เลขอ้างอิงคนต่างด้าว</p>
+    <p style="position:absolute;top:354px;left:180px;white-space:nowrap" class="ft00" id="alienReferenceReceipt">xxxxxxxxxxxxx</p>
+    <p style="position:absolute;top:354px;left:432px;white-space:nowrap" class="ft00">หมายเลขประจำตัวคนต่างด้าว</p>
+    <p style="position:absolute;top:354px;left:640px;white-space:nowrap" class="ft00" id="personalIDReceipt">xxxxxxxxxxxxx</p>
+    <!-- Employer Information -->
+    <p style="position:absolute;top:399px;left:60px;white-space:nowrap" class="ft00">ชื่อนายจ้าง / สถานประกอบการ&#160;&#160; บริษัท บาน กง เอ็นจิเนียริ่ง จำกัด</p>
+    <p style="position:absolute;top:438px;left:60px;white-space:nowrap" class="ft00">เลขประจำตัวนายจ้าง</p>
+    <p style="position:absolute;top:437px;left:233px;white-space:nowrap" class="ft00">&#160; 0415567000061</p>
+    <!-- Items Header -->
+    <p style="position:absolute;top:526px;left:345px;white-space:nowrap" class="ft02"><b>รายการ</b></p>
+    <p style="position:absolute;top:526px;left:688px;white-space:nowrap" class="ft02"><b>จำนวนเงิน</b></p>
+    <!-- Fee Items -->
+    <p style="position:absolute;top:572px;left:118px;white-space:nowrap" class="ft03">1. ค่าธรรมเนียมในการยื่นคำขอ ฉบับละ 100 บาท</p>
+    <p style="position:absolute;top:572px;left:736px;white-space:nowrap" class="ft03">100.00</p>
+    <p style="position:absolute;top:616px;left:118px;white-space:nowrap" class="ft03">2. ค่าธรรมเนียมใบอนุญาตทำงาน</p>
+    <p style="position:absolute;top:616px;left:736px;white-space:nowrap" class="ft03">900.00</p>
+    <!-- Empty rows -->
+    <p style="position:absolute;top:694px;left:97px;white-space:nowrap" class="ft03">&#160;</p>
+    <p style="position:absolute;top:694px;left:648px;white-space:nowrap" class="ft03">&#160;</p>
+    <!-- Total -->
+    <p style="position:absolute;top:772px;left:174px;white-space:nowrap" class="ft02"><b>รวมเป็นเงินทั้งสิ้น (บาท)</b></p>
+    <p style="position:absolute;top:799px;left:188px;white-space:nowrap" class="ft02"><b>( หนึ่งพันบาทถ้วน )</b></p>
+    <p style="position:absolute;top:786px;left:385px;white-space:nowrap" class="ft03">&#160;</p>
+    <p style="position:absolute;top:774px;left:722px;white-space:nowrap" class="ft02"><b>1,000.00</b></p>
+    <!-- Receipt Confirmation -->
+    <p style="position:absolute;top:894px;left:94px;white-space:nowrap" class="ft00">ได้รับเงินไว้เป็นการถูกต้องแล้ว</p>
+    <!-- Signature -->
+    <p style="position:absolute;top:977px;left:481px;white-space:nowrap" class="ft00">(ลงชื่อ)</p>
+    <p style="position:absolute;top:977px;left:564px;white-space:nowrap" class="ft00">นางสาวอารีวรรณ โพธิ์นิ่มแดง</p>
+    <p style="position:absolute;top:977px;left:762px;white-space:nowrap" class="ft00">(ผู้รับเงิน)</p>
+    <!-- Position -->
+    <p style="position:absolute;top:1017px;left:473px;white-space:nowrap" class="ft00">ตำแหน่ง</p>
+    <p style="position:absolute;top:1016px;left:562px;white-space:nowrap" class="ft00">นักวิชาการแรงงานชำนาญการ</p>
+    <!-- Receipt Timestamp -->
+    <p style="position:absolute;top:1133px;left:55px;white-space:nowrap" class="ft06" id="receiptTimestamp">เอกสารอิเล็กทรอนิกส์ฉบับนี้ถูกสร้างจากระบบอนุญาตทำงานคนต่างด้าวที่มีสถานะการทำงานไม่ถูกต้องตามกฎหมาย ตามมติคณะรัฐมนตรีเมื่อวันที่ 24 กันยายน 2567<br/>โดยกรมการจัดหางาน กระทรวงแรงงาน</p>
+  </div>
+</body>
+</html>
